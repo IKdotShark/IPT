@@ -1,42 +1,174 @@
-def lzfg_compress(source, W, M):
-    n = len(source)
-    N = 0
-    codeword = ""
+# LZFG
 
-    while N < n:
-        # Находим максимальную длину l
-        l_max = 0
-        d = 0
-        for l in range(3, 18):
-            if N + l > n:
-                break
-            substring = source[N:N + l]
-            window_start = max(0, N - W)
-            window = source[window_start:N]
+import math
+# 17 нельзя нужно по правильному
+# Костарев посмотреть
+# Из учебника сравнить
+uniq_sym = {}  # Словарь для хранения символов и их индексов
+info = []  # Результирующая таблица
+# message = "early_to_bed_and_early_to_rise_makes_a_man_wise"
+message = "IF_WE_CANNOT_DO_AS_WE_WOULD_WE_SHOULD_DO_AS_WE_CAN"
+in_proc = ""  # Накопленные необработанные символы
+max_word = 16  # Максимальная длина слова
 
-            pos = window.rfind(substring)
-            if pos != -1:
-                l_max = l
-                d = N - (window_start + pos)
 
-        if l_max >= 2:
-            # Кодирование найденной подстроки
-            codeword += "0000"  # Префикс для повторяющейся подстроки
-            codeword += format(l_max - 3, '04b')  # Длина подстроки в 4 битах
-            codeword += format(d, f'0{(M-1).bit_length()}b')  # Расстояние до начала повторения
-            N += l_max
+def dictionary_add(key, index):
+    """Добавляет символ в словарь и возвращает True, если символ новый"""
+    if key not in uniq_sym:
+        uniq_sym[key] = []
+        uniq_sym[key].append(index)
+        return True
+    else:
+        uniq_sym[key].append(index)
+        return False
+
+
+def check_letter(symbol):
+    """Проверяет, есть ли совпадение следующего символа в предыдущих вхождениях"""
+    indexes = uniq_sym.get(symbol, [])
+    if not indexes:
+        return False
+    if indexes[-1] == len(message) - 1:
+        return False
+    next_char = message[indexes[-1] + 1]
+    for idx in indexes[:-1]:
+        if idx + 1 < len(message) and message[idx + 1] == next_char:
+            return True
+    return False
+
+
+def index_of_end(basic, substr):
+    """Возвращает последний индекс вхождения подстроки"""
+    pos = basic.rfind(substr)
+    return pos if pos != -1 else -2
+
+
+def find_word(now):
+    """Ищет максимальное совпадение подстроки в предыдущих данных"""
+    basic = message[:now]
+    substr = message[now:now + 3]
+    if len(substr) < 3:
+        return (-1, 0)
+    idx = index_of_end(basic, substr)
+    if idx == -2:
+        return (-1, 0)
+    length = 3
+    while True:
+        if now + length >= len(message):
+            break
+        next_sub = substr + message[now + length]
+        new_idx = index_of_end(basic, next_sub)
+        if new_idx >= 0:
+            idx = new_idx
+            substr = next_sub
+            dictionary_add(message[now + length], now + length)
+            length += 1
         else:
-            # Кодирование одиночного символа
-            codeword += "1"  # Префикс для одиночного символа
-            codeword += format(ord(source[N]), '08b')  # Символ в 8 битах (ASCII код)
-            N += 1
+            break
+    return (idx, length)
 
-    return codeword
 
-# Пример использования
-source = "early_to_bed_and_early_to_rise_makes_a_man_wise"
-W = 16  # Длина окна
-M = 256  # Размер алфавита (для ASCII символов)
+def str_to_binary(input_str):
+    """Преобразует строку в бинарное представление"""
+    return ''.join([bin(ord(c))[2:].zfill(8) for c in input_str])
 
-compressed = lzfg_compress(source, W, M)
-print("Закодированное слово:", compressed)
+
+def fill_row_unique():
+    """Формирует строку таблицы для уникальных символов"""
+    global in_proc
+    row = [""] * 8
+    row[0] = str(len(info) + 1)
+    row[1] = in_proc
+    row[2] = "-"
+    row[3] = "-"
+    row[4] = str(len(in_proc))
+    if not info:
+        row[5] = row[4]
+    else:
+        row[5] = str(int(info[-1][5]) + int(row[4]))
+    # Формируем кодовую строку
+    prefix = '0000' + bin(len(in_proc) - 1)[2:].zfill(4)
+    bin_str = prefix + str_to_binary(in_proc)
+    row[6] = bin_str
+    row[7] = str(len(bin_str))
+    in_proc = ""
+    return row
+
+
+def main():
+    global in_proc
+    i = 0
+    while i < len(message):
+        if len(in_proc) == max_word:
+            info.append(fill_row_unique())
+
+        added = dictionary_add(message[i], i)
+        if added:
+            in_proc += message[i]
+        else:
+            if check_letter(message[i]):
+                if i + 1 >= len(message):
+                    in_proc += message[i]
+                    continue
+                dictionary_add(message[i + 1], i + 1)
+                if check_letter(message[i + 1]):
+                    if i + 2 >= len(message):
+                        in_proc += message[i] + message[i + 1]
+                        i += 1
+                        continue
+                    dictionary_add(message[i + 2], i + 2)
+                    if in_proc:
+                        info.append(fill_row_unique())
+                    idx, length = find_word(i)
+                    if idx == -1:
+                        in_proc += message[i:i + 3]
+                        i += 2
+                        continue
+                    row = [""] * 8
+                    row[0] = str(len(info) + 1)
+                    row[1] = message[idx:idx + length]
+                    row[2] = str(i - idx - 1)
+                    row[3] = str(length)
+                    row[4] = "-"
+                    if not info:
+                        row[5] = str(length)
+                    else:
+                        row[5] = str(int(info[-1][5]) + length)
+                    order = math.ceil(math.log2(int(info[-1][5]))) if info else 1
+                    code_len = bin(length - 2)[2:].zfill(4)
+                    code_dist = bin(i - idx - 1)[2:].zfill(order)
+                    row[6] = code_len + code_dist
+                    row[7] = str(len(row[6]))
+                    info.append(row)
+                    i += length - 1
+                else:
+                    in_proc += message[i] + message[i + 1]
+                    i += 1
+            else:
+                in_proc += message[i]
+        i += 1
+
+    if in_proc:
+        info.append(fill_row_unique())
+
+    # Вывод таблицы
+    print(
+        "\nШаг  Пер. бук.          Расст. до обр.   Длин. совп.   Чис. нов. бук.   Сум. всех бук. до   Кодов. симв.                Затр. бит.")
+    for row in info:
+        step, letters, dist, match_len, new_letters, total, code, bits = row
+        code_disp = code if len(code) < 25 else "отдельно"
+        print(f"{step:<5}{letters:<19}{dist:<17}{match_len:<14}{new_letters:<17}{total:<20}{code_disp:<28}{bits:<7}")
+
+    print("\n")
+    result = {}
+    for row in info:
+        result[row[1]] = row[6]
+        print(f"{row[1]:<16} - {row[6]}")
+
+    print("\n")
+    for char in uniq_sym:
+        print(f"{char} - {uniq_sym[char]}")
+
+
+if __name__ == "__main__":
+    main()
