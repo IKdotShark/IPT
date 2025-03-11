@@ -1,13 +1,8 @@
-# LZFG
-
 import math
-# 17 нельзя нужно по правильному
-# Костарев посмотреть
-# Из учебника сравнить
 uniq_sym = {}  # Словарь для хранения символов и их индексов
 info = []  # Результирующая таблица
-# message = "early_to_bed_and_early_to_rise_makes_a_man_wise"
-message = "IF_WE_CANNOT_DO_AS_WE_WOULD_WE_SHOULD_DO_AS_WE_CAN"
+# message = "IF_WE_CANNOT_DO_AS_WE_WOULD_WE_SHOULD_DO_AS_WE_CAN"
+message = "can_you_can_a_can_as_a_canner_can_can_a_can?"
 in_proc = ""  # Накопленные необработанные символы
 max_word = 16  # Максимальная длина слова
 
@@ -83,9 +78,9 @@ def fill_row_unique():
     row[3] = "-"
     row[4] = str(len(in_proc))
     if not info:
-        row[5] = row[4]
+        row[5] = "0"
     else:
-        row[5] = str(int(info[-1][5]) + int(row[4]))
+        row[5] = str(int(info[-1][5]) + len(info[-1][1]))
     # Формируем кодовую строку
     prefix = '0000' + bin(len(in_proc) - 1)[2:].zfill(4)
     bin_str = prefix + str_to_binary(in_proc)
@@ -133,8 +128,8 @@ def main():
                     if not info:
                         row[5] = str(length)
                     else:
-                        row[5] = str(int(info[-1][5]) + length)
-                    order = math.ceil(math.log2(int(info[-1][5]))) if info else 1
+                        row[5] = str(int(info[-1][5]) + len(info[-1][1]))
+                    order = math.ceil(math.log2(int(info[-1][5]) + len(info[-1][1])))
                     code_len = bin(length - 2)[2:].zfill(4)
                     code_dist = bin(i - idx - 1)[2:].zfill(order)
                     row[6] = code_len + code_dist
