@@ -133,7 +133,7 @@ def main():
                     code_len = bin(length - 2)[2:].zfill(4)
                     code_dist = bin(i - idx - 1)[2:].zfill(order)
                     row[6] = code_len + code_dist
-                    row[7] = str(len(row[6]))
+                    row[7] = str(len(code_len) + len(code_dist))  # Исправлено: длина бинарного кода
                     info.append(row)
                     i += length - 1
                 else:
